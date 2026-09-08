@@ -95,6 +95,35 @@ jobs:
           user_email: 41898282+github-actions[bot]@users.noreply.github.com
           commit_message: 'build: geosite.dat ${{ github.sha }}'
 
+  release-latest:
+    name: 发布到 latest Release（每次 push 自动刷新）
+    # 每次普通 push（main/master）都发布为 latest；tag push 走下面的版本化 release
+    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: geosite-dat
+          path: out
+
+      - name: 生成 SHA256 校验和
+        run: |
+          sha256sum out/geosite.dat > out/geosite.dat.sha256sum
+          cat out/geosite.dat.sha256sum
+
+      - name: 重建 latest Release（删除旧的并指向本次提交）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest \
+            out/geosite.dat out/geosite.dat.sha256sum \
+            --title "geosite.dat (latest)" \
+            --target "${{ github.sha }}" \
+            --notes "基于 v2fly/domain-list-community 自动编译的 geosite.dat（每次 push 自动刷新，构建提交 ${{ github.sha }}）"
+
   release:
     name: 发布 GitHub Release
     # 仅打 tag 时触发（push v* tag）

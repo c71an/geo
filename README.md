@@ -28,7 +28,7 @@
 
 > 第 2、3 步由 GitHub Actions 在云端执行，仓库内不含任何本地构建脚本。
 > 每次 commit 到 `main`/`master` 都会触发编译，产物只存在于本次运行的
-> Actions Artifact 与 `dist` 分支中（不入库）。
+> Actions Artifact、`dist` 分支与 `latest` Release 中（不入库）。
 
 ## GitHub Actions 自动构建
 
@@ -36,6 +36,8 @@
 
 - **build job**：编译并上传 Actions Artifact（可在仓库 Actions 页面按 commit 下载）；
 - **publish job**：把产物推送到 `dist` 分支，可直接用 raw URL 拉取最新版：
+- **release-latest job**：每次 push 到 `main`/`master` 自动把最新产物发布为
+  `latest` Release（始终对应最新一次构建，无需手动打 tag）。
 
 ```
 https://raw.githubusercontent.com/<你的用户名>/<仓库名>/dist/geosite.dat
@@ -45,17 +47,24 @@ https://mirror.ghproxy.com/https://raw.githubusercontent.com/<用户名>/<仓库
 
 PR 也会触发编译验证（不发布），支持 `workflow_dispatch` 手动触发。
 
-## 打 tag 自动发 Release
+## GitHub Release（默认 latest，可选打 tag 发版本）
 
-push 形如 `v*` 的 tag 时，会在上述构建完成后自动创建 **GitHub Release**，
-并把 `geosite.dat` 与 `geosite.dat.sha256sum` 作为附件上传：
+**每次 push 到 `main`/`master`**，`release-latest` job 会自动把当次构建的
+`geosite.dat` 与 `geosite.dat.sha256sum` 发布为 tag=`latest` 的 **GitHub Release**
+（旧的 `latest` Release 会被删除重建，始终指向最新提交）。可直接用固定 URL 下载最新版：
+
+```
+https://github.com/<你的用户名>/<仓库名>/releases/latest/download/geosite.dat
+```
+
+若需要带版本号的正式 Release，仍可 push 形如 `v*` 的 tag，会额外生成一个版本化 Release：
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-可在仓库 Releases 页面看到版本与可下载附件；Release 也支持带 `-rc`/`-beta` 等后缀的预发布 tag。
+可在仓库 Releases 页面看到版本与可下载附件；版本化 Release 也支持带 `-rc`/`-beta` 等后缀的预发布 tag。
 
 ## config 规则语法
 
