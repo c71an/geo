@@ -117,8 +117,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create latest \
+          gh release delete latest --repo "${{ github.repository }}" --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest --repo "${{ github.repository }}" \
             out/geosite.dat out/geosite.dat.sha256sum \
             --title "geosite.dat (latest)" \
             --target "${{ github.sha }}" \
