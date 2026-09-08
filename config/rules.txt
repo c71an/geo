@@ -1,0 +1,11 @@
+# rules.txt —— geosite 分类清单（可附带自定义源文件映射）
+# 语法：每行 <可选源文件名> : <geosite 分类名>（左列可省略 .txt 后缀）
+# 说明：左列对应文件若存在于本 config/ 目录（如 Apple.txt），会解析并合入该分类；
+#       否则沿用官方 domain-list-community 的同名分类（passthrough）。
+#       cn 分类会额外叠加 cn-extra.txt 的内容。
+Apple: Apple
+Binance: Binance
+Google: Google
+Microsoft: Microsoft
+Netflix: netflix
+cn: cn

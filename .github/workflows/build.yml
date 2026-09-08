@@ -1,0 +1,130 @@
+name: Build geosite.dat
+
+# 每次 push/commit 到 main|master、或打 v* tag 自动构建；也支持手动触发
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: geosite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 编译 geosite.dat
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 克隆 v2fly 官方仓库
+        run: git clone --depth 1 https://github.com/v2fly/domain-list-community.git
+
+      - name: 生成自定义分类 + dat_diy.json
+        run: python tools/build_dlc.py
+
+      - name: 编译 geosite.dat
+        working-directory: domain-list-community
+        run: |
+          go mod download
+          go run ./ --datapath=./data \
+            --datprofile="$GITHUB_WORKSPACE/dat_diy.json" \
+            --outputdir="$GITHUB_WORKSPACE/out"
+
+      - name: 校验产物可解析（导出 cn 列表）
+        working-directory: domain-list-community
+        run: |
+          go run ./cmd/datdump \
+            --inputdata="$GITHUB_WORKSPACE/out/geosite.dat" \
+            --outputdir="$GITHUB_WORKSPACE/out" \
+            --exportlists=cn
+          if [ -s "$GITHUB_WORKSPACE/out/cn.yml" ]; then
+            echo "✓ geosite.dat 可正常解析，cn 列表非空"
+          else
+            echo "✗ cn 列表为空"
+            exit 1
+          fi
+
+      - name: 上传构建产物（本次 commit 的 Artifact）
+        uses: actions/upload-artifact@v4
+        with:
+          name: geosite-dat
+          path: out/geosite.dat
+          if-no-files-found: error
+
+  publish:
+    name: 发布到 dist 分支（供 raw URL 直接拉取）
+    # 只在 push 时发布，PR 构建不发布
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: geosite-dat
+          path: out
+
+      - name: 部署到 dist 分支
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: dist
+          publish_dir: ./out
+          force_orphan: false
+          enable_jekyll: false
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_message: 'build: geosite.dat ${{ github.sha }}'
+
+  release:
+    name: 发布 GitHub Release
+    # 仅打 tag 时触发（push v* tag）
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: geosite-dat
+          path: out
+
+      - name: 生成 SHA256 校验和
+        run: |
+          sha256sum out/geosite.dat > out/geosite.dat.sha256sum
+          cat out/geosite.dat.sha256sum
+
+      - name: 创建 Release 并上传附件
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: geosite.dat ${{ github.ref_name }}
+          body: |
+            基于 v2fly/domain-list-community 自动编译的 geosite.dat
+            - 分类由 rules.txt 映射、cn 已叠加 cn-extra.txt
+            - 构建提交: `${{ github.sha }}`
+          files: |
+            out/geosite.dat
+            out/geosite.dat.sha256sum
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true

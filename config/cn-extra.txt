@@ -1,0 +1,7 @@
+# cn-extra.txt —— 追加进 geosite:cn 的自定义补充域名
+# 规则格式与 v2fly/domain-list-community 的 data/ 目录保持一致（每行一条，# 开头为注释）：
+#   - 裸域名    : domain 规则，匹配该域及其子域        例: www.apple.com
+#   - full:xxx  : full 规则，精确匹配完整域名（不含子域）例: full:apple.com.akadns.net
+#   - 另支持 keyword: / regexp: / include: 以及 @属性 等官方 data 语法
+#
+# ── 以下为示例占位，请替换为你的真实 cn 补充域名 ──
